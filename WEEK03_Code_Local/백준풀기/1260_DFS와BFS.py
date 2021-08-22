@@ -77,6 +77,23 @@ def bfs(list, start):
 
     return answer
 
+def bfs(graph, start_node):
+    from collections import deque
+
+    visited = []
+    need_visited = deque()
+
+    need_visited.append(start_node)
+
+    while need_visited:
+        node = need_visited.popleft()
+
+        if node not in visited:
+            visited.append(node)
+            need_visited.extend(graph[node])
+
+    return visited
+
 
 
 print(*dfs(connect_list, V))
