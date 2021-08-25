@@ -13,26 +13,26 @@ dy = [-1, 1, 0, 0]
 
 
 ## DFS
-# now_record = []
-# now_record.append(alphabet_list[0][0])
+now_record = []
+now_record.append(alphabet_list[0][0])
 
-# ans = 1
-# def dfs(x, y, count):
-#     global ans
+ans = 1
+def dfs(x, y, count):
+    global ans
 
-#     ans = max(ans, count)
+    ans = max(ans, count)
 
-#     for i in range(4):
-#         new_x = x + dx[i]
-#         new_y = y + dy[i]
+    for i in range(4):
+        new_x = x + dx[i]
+        new_y = y + dy[i]
 
-#         if 0 <= new_x < R and 0 <= new_y < C and alphabet_list[new_x][new_y] not in now_record:
-#                 now_record.append(alphabet_list[new_x][new_y])
-#                 dfs(new_x, new_y, count + 1)
-#                 now_record.remove(alphabet_list[new_x][new_y])
+        if 0 <= new_x < R and 0 <= new_y < C and alphabet_list[new_x][new_y] not in now_record:
+                now_record.append(alphabet_list[new_x][new_y])
+                dfs(new_x, new_y, count + 1)
+                now_record.remove(alphabet_list[new_x][new_y])
 
-# dfs(0, 0, ans)
-# print(ans)
+dfs(0, 0, ans)
+print(ans)
 
 
 # queue = collections.deque()
