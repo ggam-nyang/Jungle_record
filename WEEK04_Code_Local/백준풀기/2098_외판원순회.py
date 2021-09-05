@@ -5,30 +5,27 @@ city_N = int(read().strip())
 
 cost_list = [list(map(int, read().strip().split())) for _ in range(city_N)]
 
+DP = [[-1] * (1 << city_N) for _ in range(city_N)]
+def tsp(start, visited):
+    VISITED_ALL = (1 << city_N) - 1
 
-city = []
-for i in range(city_N):
-    city.append(i)
+    if visited == VISITED_ALL:
+        if not cost_list[start][0] == 0:
+            return cost_list[start][0]
+        else:
+            return sys.maxsize
+    if not DP[start][visited] == -1:
+        return DP[start][visited]
 
-ans = []
-
-def get_shortest_dist(start, n, nums):
-    global ans
-    if not nums:
-        return cost_list[n][start]
-
-
-    temp = sys.maxsize
-    for k in range(len(nums)):
-        if cost_list[n][nums[k]] == 0:
+    cost = sys.maxsize
+    for city in range(city_N):
+        if not visited & (1 << city) == 0:
             continue
-        temp = min(temp, cost_list[n][nums[k]] + get_shortest_dist(start, nums[k], nums[:k] + nums[k + 1:]))
+        if cost_list[start][city] == 0:
+            continue
+        cost = min(cost, tsp(city, visited | (1 << city)) + cost_list[start][city])
+    DP[start][visited] = cost
 
-    return temp
+    return cost
 
-
-temp = sys.maxsize
-for i in range(city_N):
-    temp = min(temp, get_shortest_dist(i, i, city[:i] + city[i + 1:]))
-
-print(temp)
+print(tsp(0, 1))
