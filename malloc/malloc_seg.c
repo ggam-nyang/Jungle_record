@@ -312,7 +312,7 @@ static void *place(void *ptr, size_t asize)
     }
     // 100은 무슨 기준?
     // 왜 작은 블록을 앞에 두려고 할까??? ( 왜 나눠서 할까?? )
-    else if (asize >= 100) {
+    else if (asize >= 96) {
         // Split block
         PUT(HDRP(ptr), PACK(remainder, 0));
         PUT(FTRP(ptr), PACK(remainder, 0));
@@ -449,7 +449,6 @@ void *mm_malloc(size_t size)
 void mm_free(void *ptr)
 {
     size_t size = GET_SIZE(HDRP(ptr));
-    // 이건 뭐시여!?
     REMOVE_RATAG(HDRP(NEXT_BLKP(ptr)));
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
@@ -500,6 +499,7 @@ void *mm_realloc(void *ptr, size_t size)
         /* Check if next block is a free block or the epilogue block */
         if (!GET_ALLOC(HDRP(NEXT_BLKP(ptr))) || !GET_SIZE(HDRP(NEXT_BLKP(ptr)))) {
             remainder = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr))) - new_size;
+            // 에필로그 블록이 아닌데, remainder가 음수라면??? 확장은 뒤에 하는데 메모리는 부족?
             if (remainder < 0) {
                 extendsize = MAX(-remainder, CHUNKSIZE);
                 if (extend_heap(extendsize) == NULL)
