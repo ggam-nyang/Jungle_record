@@ -171,7 +171,6 @@ static void *extend_heap(size_t size)
     PUT_NOTAG(HDRP(ptr), PACK(asize, 0));
     PUT_NOTAG(FTRP(ptr), PACK(asize, 0));
     PUT_NOTAG(HDRP(NEXT_BLKP(ptr)), PACK(0, 1));
-    insert_node(ptr, asize);
 
     return coalesce(ptr);
 }
@@ -187,6 +186,7 @@ static void insert_node(void *ptr, size_t size) {
         size >>= 1;
         list++;
     }
+        // printf("size %d\n", size);
 
     // Keep size ascending order and search    ---> search_ptr을 해당 seg의 첫번째 연결고리로 바꿈
     search_ptr = segregated_free_lists[list];
@@ -267,23 +267,19 @@ static void *coalesce(void *ptr)
         prev_alloc = 1;
     // 바로 return? insert 안하고??
     if (prev_alloc && next_alloc) {                         // Case 1
-        return ptr;
     }
     else if (prev_alloc && !next_alloc) {                   // Case 2
-        delete_node(ptr);
         delete_node(NEXT_BLKP(ptr));
         size += GET_SIZE(HDRP(NEXT_BLKP(ptr)));
         PUT(HDRP(ptr), PACK(size, 0));
         PUT(FTRP(ptr), PACK(size, 0));
     } else if (!prev_alloc && next_alloc) {                 // Case 3
-        delete_node(ptr);
         delete_node(PREV_BLKP(ptr));
         size += GET_SIZE(HDRP(PREV_BLKP(ptr)));
         PUT(FTRP(ptr), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(ptr)), PACK(size, 0));
         ptr = PREV_BLKP(ptr);
     } else {                                                // Case 4
-        delete_node(ptr);
         delete_node(PREV_BLKP(ptr));
         delete_node(NEXT_BLKP(ptr));
         size += GET_SIZE(HDRP(PREV_BLKP(ptr))) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
@@ -453,7 +449,6 @@ void mm_free(void *ptr)
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
 
-    insert_node(ptr, size);
     coalesce(ptr);
 
     return;
