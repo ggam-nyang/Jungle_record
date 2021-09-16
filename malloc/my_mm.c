@@ -26,15 +26,15 @@ static void *find_fit(size_t);
 static void *next_fit(size_t);
 static void *place(void *, size_t);
 
-// explicit
-static void *root_change(void *);
-static void *connect_change(void *);
-
+void remove_block(void *bp);
+void put_free_block(void *bp);
 
 static char *heap_listp;
+static char *free_listp = NULL;
 
 
-
+// ------------------------------------------- Review 잘 부탁드립니다 --------------------------------------------------- //
+// Explicit 리스트, first-fit으로 구현하였고 분할 부분을 개선하여 86점으로 통과했습니다!
 
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
@@ -83,14 +83,15 @@ team_t team = {
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
-// explicit
 #define PRED_LOC(bp) (HDRP(bp) + WSIZE)
 #define SUCC_LOC(bp) (HDRP(bp) + DSIZE)
 
-#define PRED(bp) *(char *)PRED_LOC(bp)
-#define SUCC(bp) *(char *)SUCC_LOC(bp)
+#define PREC_FREEP(bp) GET(PRED_LOC(bp))
+#define SUCC_FREEP(bp) GET(SUCC_LOC(bp))
 
 
+
+// 메모리가 부족할 때, heap을 늘려주는 함수
 static void *extend_heap(size_t words)
 {
     char * bp;
@@ -106,8 +107,7 @@ static void *extend_heap(size_t words)
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
 
-    printf("extend now \n");
-    // 이전 block과 합쳐야 할지 알기 위해 coalesce 호출!!
+    // 물리적인 주변 block과 합쳐야 할지 알기 위해 coalesce 호출!!
     return coalesce(bp);
 }
 
@@ -119,7 +119,7 @@ static void *extend_heap(size_t words)
  */
 int mm_init(void)
 {
-    // empty heap을 만들자
+    // empty heap을 만들기
     if ((heap_listp = mem_sbrk(6 * WSIZE)) == (void *) - 1)
         return -1;
     PUT(heap_listp, 0);
@@ -128,7 +128,9 @@ int mm_init(void)
     PUT(heap_listp + (3 * WSIZE), NULL);
     PUT(heap_listp + (4 * WSIZE), PACK(DSIZE * 2, 1));
     PUT(heap_listp + (5 * WSIZE), PACK(0, 1));
-    heap_listp += (2 * WSIZE);
+
+    // heap_listp += (2 * WSIZE);  explict 리스트의 head로 이용하기 위한 free_listp 정의
+    free_listp = heap_listp + DSIZE;
 
     if (extend_heap(CHUNKSIZE / WSIZE) == NULL)
         return -1;
@@ -141,14 +143,6 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    // int newsize = ALIGN(size + SIZE_T_SIZE);
-    // void *p = mem_sbrk(newsize);
-    // if (p == (void *)-1)
-	// return NULL;
-    // else {
-    //     *(size_t *)p = size;
-    //     return (void *)((char *)p + SIZE_T_SIZE);
-    // }
     size_t asize;
     size_t extendsize;
     char *bp;
@@ -157,103 +151,112 @@ void *mm_malloc(size_t size)
     if (size == 0)
         return NULL;
 
-    // size를 조정해주기! header, footer를 위한 8바이트, 그리고 기본 2와드 이므로 8바이트
+    // size를 조정해주기! header, footer를 위한 8바이트, 그리고 더블 워드 정렬을 위해 ASIGN한다.
     if (size <= DSIZE)
         asize = 2 * DSIZE;
     else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
+        asize = ALIGN(size+DSIZE);
 
-    // find_fit 해서 적절한 곳에 메모리 심기
+    // find_fit 해서 적절한 곳에 메모리 할당
     if ((bp = find_fit(asize)) != NULL) {
-        place(bp, asize);
+        bp = place(bp, asize);
         return bp;
     }
 
-    // fit이 없다면
+    // fit을 찾지 못했다면 heap 확장
     extendsize = MAX(asize, CHUNKSIZE);
     if ((bp = extend_heap(extendsize / WSIZE)) == NULL)
         return NULL;
-    place(bp, asize);
+    bp = place(bp, asize);
     return bp;
 }
 
+
+// first-fit을 이용했습니다.
 static void *find_fit(size_t asize)
 {
-    printf("fit here \n");
-    void *start_bp = SUCC(heap_listp);
-    while (GET_ALLOC(HDRP(start_bp)))
+    void *start_bp = free_listp;
+    while (!GET_ALLOC(HDRP(start_bp)))
     {
-        printf("fit here \n");
-        if (asize <= GET_SIZE(HDRP(start_bp)))
+        if (GET_SIZE(HDRP(start_bp)) >= asize)
             return start_bp;
-        start_bp = SUCC(start_bp);
+        start_bp = SUCC_FREEP(start_bp);
     }
     return NULL;
 }
 
 
-// long long next_fit_point = 4 * WSIZE;
-// static void *next_fit(size_t asize)
-// {
-//     void *start_bp = mem_heap_lo();
-//     printf("%p\n", next_fit_point);
-//     while (GET_SIZE(HDRP(start_bp + next_fit_point)) > 0)
-//     {
-//         if (!GET_ALLOC(HDRP(start_bp + next_fit_point)) && (asize <= GET_SIZE(HDRP(start_bp + next_fit_point))))
-//             // start_bp 어딘가에 저장  next_bp
-//             return start_bp + next_fit_point;
-
-//         next_fit_point += GET_SIZE(HDRP(start_bp + next_fit_point));
-//         printf("%p\n", next_fit_point);
-//     }
-
-//     next_fit_point = 4 * WSIZE;
-//     while (GET_SIZE(HDRP(start_bp + next_fit_point)) > 0)
-//     {
-//         if (!GET_ALLOC(HDRP(start_bp + next_fit_point)) && (asize <= GET_SIZE(HDRP(start_bp + next_fit_point))))
-//             // start_bp 어딘가에 저장  next_bp
-//             return start_bp + next_fit_point;
-
-//         next_fit_point += GET_SIZE(HDRP(start_bp + next_fit_point));
-//     }
-
-//     return NULL;
-// }
-
+// 최소 요구 크기를 기준으로, 2가지 case로 나누어 분할을 진행합니다.
 static void *place(void *bp, size_t asize)
 {
-    size_t now_block_size = GET_SIZE(HDRP(bp));
-    if ((now_block_size - asize) >= 6 * WSIZE)
+    size_t osize = GET_SIZE(HDRP(bp));
+
+    remove_block(bp);
+    // 할당 후 잔여 블록이 최소 블록 사이즈를 충족하지 못하는 경우, 분할하지 않고 전체 블록을 할당한다.
+    // (할당 블록의 경우, PRED / SUCC이 필요하지 않으므로 최소 블록의 크기는 4 WSIZE이다.)
+    if ((osize - asize) <= 4 * WSIZE)
+    {
+        PUT(HDRP(bp), PACK(osize, 1));
+        PUT(FTRP(bp), PACK(osize, 1));
+    }
+    // 최소 블록 사이즈를 충족할 경우, 2가지로 나누었다.
+    // binary.rep의 효율을 상승시키기 위해 96byte 이상의 크기에 대해서는 할당 블록을 뒤에 배치하고, 비할당 블록을 앞에 위치했다.
+    // -> 이 효과로 96byte 이상의 블록이 free 된 후, 기존보다 더 큰 블록이 들어 올 때, 외부 단편화를 최소화할 수 있다.
+    else if (asize >= 96)
+    {
+        PUT(HDRP(bp), PACK(osize - asize, 0));
+        PUT(FTRP(bp), PACK(osize - asize, 0));
+        put_free_block(bp);
+
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+
+    }
+    // 96 이상의 블록이 아닌 경우에는 기존처럼 할당 블록을 앞에, 비할당 블록을 뒤에 배치하였다.
+    else
     {
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FTRP(bp), PACK(asize, 1));
 
-        PUT(PRED_LOC(NEXT_BLKP(bp)), PRED(bp));
-        PUT(SUCC_LOC(NEXT_BLKP(bp)), SUCC(bp));
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(osize - asize, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(osize - asize, 0));
 
-        bp = NEXT_BLKP(bp);
-        PUT(HDRP(bp), PACK(now_block_size - asize, 0));
-        PUT(FTRP(bp), PACK(now_block_size - asize, 0));
-        // 원래 연결된 내 위치를, 새로 free한 녀석에게 전해줌!
+        put_free_block(NEXT_BLKP(bp));
     }
-    else
-    {
-        printf("%d  %d \n", now_block_size, asize);
-        PUT(HDRP(bp), PACK(now_block_size, 1));
-        PUT(FTRP(bp), PACK(now_block_size, 1));
-        // 원래 연결리스트 값을, 각각 PRED, SUCC에게 수정해줌!  1 - 2 - 3 에서 2가 사라졌으므로, 1 - 3이 될 수 있도록!
-        PUT(SUCC_LOC(PRED(bp)), SUCC(bp));
-        PUT(PRED_LOC(SUCC(bp)), PRED(bp));
-    }
-
+    return bp;
 }
+
+// 새로운 free 블럭이 생겼을 때, LIFO 방식을 위해 첫 헤드에 넣어줍니다.
+void put_free_block(void *bp)
+{
+    SUCC_FREEP(bp) = free_listp;
+    PREC_FREEP(bp) = NULL;
+    PREC_FREEP(free_listp) = bp;
+    free_listp = bp;
+}
+
+
+// free 블럭에 메모리를 할당 했을 때, 삭제된 노드를 연결리스트에서 제거하고 연결을 이어줍니다.
+void remove_block(void *bp)
+{
+    if (bp == free_listp) {
+        PREC_FREEP(SUCC_FREEP(bp)) = NULL;
+        free_listp = SUCC_FREEP(bp);
+    }
+    else {
+        SUCC_FREEP(PREC_FREEP(bp)) = SUCC_FREEP(bp);
+        PREC_FREEP(SUCC_FREEP(bp)) = PREC_FREEP(bp);
+    }
+}
+
+
 
 /*
  * mm_free - Freeing a block does nothing.
  */
 void mm_free(void *bp)
 {
-    printf("free here \n");
     size_t size = GET_SIZE(HDRP(bp));
 
     PUT(HDRP(bp), PACK(size, 0));
@@ -261,77 +264,42 @@ void mm_free(void *bp)
     coalesce(bp);
 }
 
-static void *root_change(void *bp) {
-    printf("root here \n");
-    PUT(SUCC_LOC(bp), SUCC(heap_listp));
-    PUT(PRED_LOC(bp), heap_listp);
-    if (SUCC(bp))
-        PUT(PRED_LOC(SUCC(bp)), bp);
-    PUT(SUCC_LOC(heap_listp), bp);
-    printf("%p \n", SUCC_LOC(heap_listp));
-    return bp;
-}
-
-static void *connect_change(void *bp) {
-    printf("connect here \n");
-    printf("%d  %p  %p \n", *HDRP(bp), PRED(bp), SUCC(bp));
-    if (SUCC(bp))
-        PUT(PRED_LOC(SUCC(bp)), PRED(bp));
-    if (PRED(bp))
-        PUT(SUCC_LOC(PRED(bp)), SUCC(bp));
-}
-
+// 4가지 경우로 나누어 연결을 진행합니다.
 static void *coalesce(void *bp)
 {
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
-    printf("coalesce here \n");
-    // CASE 1
     if (prev_alloc && next_alloc) {
-        printf("coalesce case1 \n");
-        root_change(bp);
+
     }
-    // CASE 2
+
     else if (prev_alloc && !next_alloc) {
-        // 원래 free였던 애도 연결리스트를 수정해준다 1 - 2 - 3 에서 2가 다른애랑 결합이 되니까, 1 - 3으로!
-        printf("coalesce case2 \n");
-        connect_change(NEXT_BLKP(bp));
-
-
+        remove_block(NEXT_BLKP(bp));
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
-
-        root_change(bp);
     }
 
     else if (!prev_alloc && next_alloc) {
-        printf("coalesce case3 \n");
-        connect_change(PREV_BLKP(bp));
-
+        remove_block(PREV_BLKP(bp));
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
-
-        root_change(bp);
     }
 
     else {
-        printf("coalesce case4 \n");
-        connect_change(PREV_BLKP(bp));
-        connect_change(NEXT_BLKP(bp));
-
+        remove_block(PREV_BLKP(bp));
+        remove_block(NEXT_BLKP(bp));
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
-
-        root_change(bp);
-
     }
+
+    put_free_block(bp);
     return bp;
 }
 
@@ -349,24 +317,10 @@ void *mm_realloc(void *ptr, size_t size)
     newptr = mm_malloc(size);
     if (newptr == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    copySize = GET_SIZE(HDRP(oldptr));
     if (size < copySize)
       copySize = size;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
