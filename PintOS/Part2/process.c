@@ -334,13 +334,13 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	char *token, *save_ptr;
 	int argc = 0;
-	
 
-	
+
+
 	char *arg[64];
 	char **argv[64];
 	void *rsp;
-	
+
 	for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
 		arg[argc] = token + '\0';
 		argc += 1;
