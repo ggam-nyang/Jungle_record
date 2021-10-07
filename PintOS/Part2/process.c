@@ -201,7 +201,9 @@ process_exec (void *f_name) {
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {
-	for (int i = 0; i < 100000000; i++);
+	for (int i = 0; i < 1000000000; i++) {
+
+	};
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
@@ -333,8 +335,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	char *token, *save_ptr;
 	int argc = 0;
 	
-	char *arg[128];
-	char **argv[100];
+
+	
+	char *arg[64];
+	char **argv[64];
 	void *rsp;
 	
 	for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
@@ -457,8 +461,6 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	if_->rsp = rsp;
 
-	/* TODO: Your code goes here.
-	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
 	success = true;
 
