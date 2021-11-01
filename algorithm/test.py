@@ -1,6 +1,4 @@
 test = {}
-test[1] = 2
-test[2] = 54
-test[3] = 1252
+test[1] = 3
+print(test.get(1))
 
-print(max(test.values()))
