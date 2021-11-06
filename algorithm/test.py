@@ -1,4 +1,3 @@
-test = {}
-test[1] = 3
-print(test.get(1))
+test = '0x21'
 
+print(int(test, base=16))
