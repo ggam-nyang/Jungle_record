@@ -1,6 +1,6 @@
 /*
  * mm-naive.c - The fastest, least memory-efficient malloc package.
- * 
+ *
  * In this naive approach, a block is allocated by simply incrementing
  * the brk pointer.  A block is pure payload. There are no headers or
  * footers.  Blocks are never coalesced or reused. Realloc is
@@ -88,7 +88,7 @@ static void *extend_heap(size_t words)
 
     // 짝수, 홀수에 따라 size 정하기
     size = (words % 2) ? (words + 1) * WSIZE : words * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1) 
+    if ((long)(bp = mem_sbrk(size)) == -1)
         return NULL;
 
     // 새로 할당하는 메모리의 header, footer 만들기 + epilogue 새로 지정하기
@@ -103,7 +103,7 @@ static void *extend_heap(size_t words)
 
 
 
-/* 
+/*
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
@@ -122,7 +122,7 @@ int mm_init(void)
     return 0;
 }
 
-/* 
+/*
  * mm_malloc - Allocate a block by incrementing the brk pointer.
  *     Always allocate a block whose size is a multiple of the alignment.
  */
@@ -143,13 +143,13 @@ void *mm_malloc(size_t size)
     // size 0인 경우 제외
     if (size == 0)
         return NULL;
-    
+
     // size를 조정해주기! header, footer를 위한 8바이트, 그리고 기본 2와드 이므로 8바이트
     if (size <= DSIZE)
         asize = 2 * DSIZE;
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE);
-    
+
     // find_fit 해서 적절한 곳에 메모리 심기
     if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
@@ -190,7 +190,7 @@ static void *next_fit(size_t asize)
         if (!GET_ALLOC(HDRP(start_bp + next_fit_point)) && (asize <= GET_SIZE(HDRP(start_bp + next_fit_point))))
             // start_bp 어딘가에 저장  next_bp
             return start_bp + next_fit_point;
-        
+
         next_fit_point += GET_SIZE(HDRP(start_bp + next_fit_point));
         printf("%p\n", next_fit_point);
     }
@@ -201,7 +201,7 @@ static void *next_fit(size_t asize)
         if (!GET_ALLOC(HDRP(start_bp + next_fit_point)) && (asize <= GET_SIZE(HDRP(start_bp + next_fit_point))))
             // start_bp 어딘가에 저장  next_bp
             return start_bp + next_fit_point;
-        
+
         next_fit_point += GET_SIZE(HDRP(start_bp + next_fit_point));
     }
 
