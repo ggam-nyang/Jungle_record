@@ -1,3 +1,12 @@
-test = '0x21'
+import itertools
+import collections
 
-print(int(test, base=16))
+
+temp = collections.deque()
+test = [1]
+print(test[-2])
+
+temp.pop
+
+itertools.permutations()
+print()
